@@ -1,2 +1,2 @@
-# sample-hosting-panel-module
-Sample hosting panel module for WISECP
+# mediacp-hosting-panel-module
+MediaCP hosting panel module for WISECP
