@@ -1,7 +1,7 @@
 <?php
     class MediaCP_Module extends ServerModule
     {
-        private $api;
+        public $api;
         function __construct($server,$options=[])
         {
             $this->_name = __CLASS__;
@@ -73,10 +73,10 @@
                     'type'              => "dropdown",
                     'value'             => isset($data["servicetype"]) ? $data["servicetype"] : "-",
                     'options'           => [
-                        'Live Streaming',
-                        'TV Station',
-                        'Ondemand Streaming',
-                        'Stream Relay',
+                        'Live Streaming' => 'Live Streaming',
+                        'TV Station' => 'TV Station',
+                        'Ondemand Streaming' => 'Ondemand Streaming',
+                        'Stream Relay' => 'Stream Relay',
                     ]
                 ],
 
@@ -94,7 +94,7 @@
                     'description'       => "",
                     'type'              => "dropdown",
                     'value'             => isset($data['bitrate']) ? $data['bitrate'] : '128',
-                    'options'           => explode(",", "24,32,40,48,56,64,80,96,112,128,160,192,224,256,320,400,480,560,640,720,800,920,1024,1280,1536,1792,2048,2560,3072,3584,4096,4068,5120,5632,6144,6656,7168,7680,8192,9216,10240,11264,12228,13312,14336,99999")
+                    'options'           => array("24" => "24 Kbps", "32" => "32 Kbps", "40" => "40 Kbps", "48" => "48 Kbps", "56" => "56 Kbps", "64" => "64 Kbps", "80" => "80 Kbps", "96" => "96 Kbps", "112" => "112 Kbps", "128" => "128 Kbps", "160" => "160 Kbps", "192" => "192 Kbps", "224" => "224 Kbps", "256" => "256 Kbps", "320" => "320 Kbps", "400" => "400 Kbps", "480" => "480 Kbps", "560" => "560 Kbps", "640" => "640 Kbps", "720" => "720 Kbps", "800" => "800 Kbps", "920" => "920 Kbps", "1024" => "1024 Kbps", "1280" => "1280 Kbps", "1536" => "1536 Kbps", "1792" => "1792 Kbps", "2048" => "2048 Kbps", "2560" => "2560 Kbps", "3072" => "3072 Kbps", "3584" => "3584 Kbps", "4096" => "4096 Kbps", "4068" => "4068 Kbps", "5120" => "5120 Kbps", "5632" => "5632 Kbps", "6144" => "6144 Kbps", "6656" => "6656 Kbps", "7168" => "7168 Kbps", "7680" => "7680 Kbps", "8192" => "8192 Kbps", "9216" => "9216 Kbps", "10240" => "10240 Kbps", "11264" => "11264 Kbps", "12228" => "12228 Kbps", "13312" => "13312 Kbps", "14336" => "14336 Kbps", "99999" => "99999 Kbps")
                 ],
 
                 'bandwidth'          => [
@@ -118,7 +118,7 @@
                     'name'              => "Stream Targets",
                     'description'       => "",
                     'type'              => "text",
-                    'value'             => isset($data["streamtargets"]) ? $data["streamtargets"] : "streamtargets",
+                    'value'             => isset($data["streamtargets"]) ? $data["streamtargets"] : "Unlimited",
                     'placeholder'       => "e.g., 100",
                 ],
             ];
@@ -180,6 +180,7 @@
             # Source Plugin
             if (in_array($params['plugin'], ['shoutcast198','shoutcast2','icecast','icecast_kh']) && !empty($order_options["creation_info"]['sourceplugin']) && $order_options["creation_info"]['sourceplugin'] != '-') {
                 $params['sourceplugin'] = $order_options["creation_info"]['sourceplugin'];
+                $params['maxsources'] = 1;
             }
 
             return $params;
@@ -187,11 +188,13 @@
 
         public function create($domain = '',array $order_options=[])
         {
+
             $username       = $this->user['email'];
             $password       = Utility::generate_hash(12);
 
-            if(isset($order_options["username"]) && $order_options["username"]) $username = $order_options["username"];
+            #if(isset($order_options["username"]) && $order_options["username"]) $username = $order_options["username"];
             if(isset($order_options["password"]) && $order_options["password"]) $password = $order_options["password"];
+
 
             try
             {
@@ -203,6 +206,7 @@
                     'user_email' => $this->user['email'],
                     'password' => $userPassword,
                 ]);
+
                 if ( isset($response->errors) && (isset($response->errors->username) || $response->errors->username == 'Username must be unique') ){
                     $user = $this->api->call("/api/0/user/show", NULL, ['username'=>$username]);
                     $userPassword = '[EXISTING PASSWORD]';
@@ -210,27 +214,13 @@
                     $user = $response->user;
                 }
 
+
                 if ( !$user || empty($user->id) ) throw new Exception("User was not created successfully.");
 
-
                 $response = $this->api->call("/api/0/media-service/store", CURLOPT_POST, $this->buildServiceParams($user->id, $password, $order_options));
+
                 if ( $response->status != 1 ) throw new Exception("Unable to create service.\n\n{$response->error}\n\nDebugging: " . print_r($response,true));
-
-                #$this->userPackage->setCustomField("User Name", $args['customer']['email']);
-                #$this->setCustomProperty( 'ServiceID', $response->service_id);
-                #$this->setCustomProperty( 'PortBase', $response->return->portbase);
-
                 $response = $this->api->call("/api/{$response->service_id}/media-service/show");
-                #$this->userPackage->setCustomField($args['server']['variables']['plugin_mediacp_Service_Name_Custom_Field'], $response->unique_id, CUSTOM_FIELDS_FOR_PACKAGE); # Optionally available for email templates
-                #$this->userPackage->setCustomField($args['server']['variables']['plugin_mediacp_Service_Portbase_Custom_Field'], $response->portbase, CUSTOM_FIELDS_FOR_PACKAGE); # Optionally available for email templates
-                #$this->userPackage->setCustomField($args['server']['variables']['plugin_mediacp_Service_Password_Custom_Field'], $response->password, CUSTOM_FIELDS_FOR_PACKAGE); # Optionally available for email templates
-
-
-                /*
-                 * $order_options or $this->order["options"]
-                * for parameters: https://docs.wisecp.com/en/kb/hosting-panel-module-development-parameters
-                * Here are the codes to be sent to the API...
-                */
             }
             catch (Exception $e){
                 $this->error = $e->getMessage();
@@ -247,7 +237,7 @@
 
             return [
                 'username' => "$response->portbase|$user->id|$response->id",
-                'password' => $response->password,
+                'password' => $password,
             ];
         }
 
@@ -596,7 +586,7 @@
         }
 
 
-
+ 
     }
 
 
