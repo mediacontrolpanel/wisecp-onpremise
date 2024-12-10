@@ -1,5 +1,5 @@
 <?php
-var_dump(get_defined_vars());exit;
+
     $LANG           = $module->lang;
     $config         = isset($options["config"]) ? $options["config"] : [];
     $disk_limit     = isset($options["disk_limit"]) ? Filter::numbers($options["disk_limit"]) : false;
